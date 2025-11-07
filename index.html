@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Control de Aseo - Economato</title>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #f0f2f5;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      background-color: #004aad;
+      color: white;
+      width: 100%;
+      text-align: center;
+      margin: 0;
+      padding: 15px 0;
+    }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      background-color: #e6e6e6;
+      width: 100%;
+    }
+
+    .tab {
+      flex: 1 1 20%;
+      text-align: center;
+      padding: 10px;
+      cursor: pointer;
+      background-color: #d9d9d9;
+      border: 1px solid #ccc;
+      transition: 0.2s;
+    }
+
+    .tab.active {
+      background-color: #004aad;
+      color: white;
+      font-weight: bold;
+    }
+
+    .section {
+      display: none;
+      width: 100%;
+      max-width: 500px;
+      padding: 10px;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    button {
+      background-color: #004aad;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background-color: #00347a;
+    }
+
+    .person {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      margin: 6px 0;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transition: 0.2s;
+    }
+
+    .person.done {
+      background-color: #d4edda;
+      text-decoration: line-through;
+      color: #555;
+    }
+
+    .check-btn {
+      background-color: #28a745;
+      border: none;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .check-btn.done {
+      background-color: #dc3545;
+      transform: rotate(180deg);
+    }
+
+    @media (max-width: 600px) {
+      .tab {
+        font-size: 13px;
+        padding: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Control de Aseo - Economato</h1>
+  <div class="tabs">
+    <div class="tab active" data-section="1">Sección 1</div>
+    <div class="tab" data-section="2">Sección 2</div>
+    <div class="tab" data-section="3">Sección 3</div>
+    <div class="tab" data-section="4">Sección 4</div>
+    <div class="tab" data-section="5">Sección 5</div>
+  </div>
+
+  <!-- Secciones -->
+  <div id="sections-container"></div>
+
+  <script>
+    const container = document.getElementById("sections-container");
+    const sections = 5;
+
+    // Crear dinámicamente las 5 secciones
+    for (let i = 1; i <= sections; i++) {
+      const section = document.createElement("div");
+      section.classList.add("section");
+      if (i === 1) section.classList.add("active");
+      section.id = `section-${i}`;
+      section.innerHTML = `
+        <div class="controls">
+          <input type="file" id="file-${i}" accept=".txt" />
+          <button onclick="clearList(${i})">Limpiar listado</button>
+        </div>
+        <div id="list-${i}" class="person-list"></div>
+      `;
+      container.appendChild(section);
+    }
+
+    // Cambiar de pestaña
+    document.querySelectorAll(".tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+
+        const sectionId = tab.dataset.section;
+        document.querySelectorAll(".section").forEach((s) => s.classList.remove("active"));
+        document.getElementById(`section-${sectionId}`).classList.add("active");
+      });
+    });
+
+    // Leer archivos TXT
+    document.querySelectorAll('input[type="file"]').forEach((input) => {
+      input.addEventListener("change", (e) => {
+        const sectionId = e.target.id.split("-")[1];
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const lines = event.target.result.split("\n").map((l) => l.trim()).filter((l) => l);
+          loadList(sectionId, lines);
+        };
+        reader.readAsText(file);
+      });
+    });
+
+    // Cargar listado
+    function loadList(sectionId, names) {
+      const listContainer = document.getElementById(`list-${sectionId}`);
+      listContainer.innerHTML = "";
+
+      names.forEach((name) => {
+        const personDiv = document.createElement("div");
+        personDiv.classList.add("person");
+        personDiv.innerHTML = `
+          <span>${name}</span>
+          <button class="check-btn">✔</button>
+        `;
+
+        const checkBtn = personDiv.querySelector(".check-btn");
+        checkBtn.addEventListener("click", () => togglePerson(sectionId, name, personDiv, checkBtn));
+
+        // Recuperar estado previo
+        const saved = JSON.parse(localStorage.getItem(`section-${sectionId}`)) || {};
+        if (saved[name]) {
+          personDiv.classList.add("done");
+          checkBtn.classList.add("done");
+          checkBtn.textContent = "✖";
+        }
+
+        listContainer.appendChild(personDiv);
+      });
+    }
+
+    // Marcar / desmarcar persona
+    function togglePerson(sectionId, name, div, btn) {
+      const saved = JSON.parse(localStorage.getItem(`section-${sectionId}`)) || {};
+      const done = div.classList.toggle("done");
+      btn.classList.toggle("done");
+      btn.textContent = done ? "✖" : "✔";
+      saved[name] = done;
+      localStorage.setItem(`section-${sectionId}`, JSON.stringify(saved));
+    }
+
+    // Limpiar listado y borrar del almacenamiento
+    function clearList(sectionId) {
+      document.getElementById(`list-${sectionId}`).innerHTML = "";
+      localStorage.removeItem(`section-${sectionId}`);
+      document.getElementById(`file-${sectionId}`).value = "";
+    }
+  </script>
+</body>
+</html>
